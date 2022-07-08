@@ -1,5 +1,5 @@
 {
-  "name": "schema-shaker",
+  "name": "@apollosolutions/schema-shaker",
   "version": "1.0.0",
   "main": "index.js",
   "license": "MIT",
