@@ -1,0 +1,37 @@
+type Query {
+  foo(a: String, b: String): Foo
+  bar(input: BarInput): Bar
+}
+
+type Foo @key(fields: "id") {
+  id: ID!
+  used: UsedEnum
+  unused: String
+}
+
+type Bar @key(fields: "id") {
+  id: ID!
+}
+
+type Unused {
+  unused: MyScalar
+}
+
+input BarInput {
+  used: String
+  unused: Upload
+}
+
+scalar MyScalar
+
+scalar Upload
+
+enum UsedEnum {
+  A
+  B
+}
+
+enum UnusedEnum {
+  C
+  D
+}

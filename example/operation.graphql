@@ -1,0 +1,11 @@
+query Test($a: String, $barInput: BarInput) {
+  foo(a: $a) {
+    used
+  }
+  bar(input: $barInput) {
+    used
+  }
+  baz {
+    used
+  }
+}

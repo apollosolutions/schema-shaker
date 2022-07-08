@@ -1,0 +1,24 @@
+type Query {
+  baz(input: BazInput): Baz
+}
+
+type Baz {
+  id: ID!
+  used: String
+  unused: String
+}
+
+type Bar @key(fields: "id") {
+  id: ID!
+  used: String
+  unused: String
+}
+
+input BazInput {
+  unused: String
+}
+
+type UnusedEntity @key(fields: "id") {
+  id: ID!
+  unused: String
+}
