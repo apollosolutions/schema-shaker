@@ -41,6 +41,8 @@ export function treeShakeSupergraph(subgraphs, operations) {
 
       const newTypeDefs = shakeSubgraphSchema(subgraph, relevantFetchNodes);
 
+      if (!newTypeDefs) return null;
+
       return {
         ...subgraph,
         typeDefs: newTypeDefs,

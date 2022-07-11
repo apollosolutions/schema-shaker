@@ -41,18 +41,23 @@ runExit(
       const result = treeShakeSupergraph(serviceDefinitions, operations);
 
       if (result.kind === "COMPOSITION_FAILURE") {
-        console.log("⚠️⚠️⚠️ Composition failed after tree shaking ⚠️⚠️⚠️");
-        console.log(result.errors);
+        this.context.stderr.write(
+          "⚠️⚠️⚠️ Composition failed after tree shaking ⚠️⚠️⚠️\n"
+        );
+        this.context.stderr.write(JSON.stringify(result.errors, null, 2));
+        this.context.stderr.write("\n");
       }
 
       if (result.kind === "OPERATION_VALIDATION_FAILURE") {
-        console.log(
-          "⚠️⚠️⚠️ Operations are no longer valid against new supergraph ⚠️⚠️⚠️"
+        this.context.stderr.write(
+          "⚠️⚠️⚠️ Operations are no longer valid against new supergraph ⚠️⚠️⚠️\n"
         );
         for (const [operation, errors] of result.errors) {
-          console.log(operation);
-          console.log(errors);
-          console.log("-".repeat(32));
+          this.context.stderr.write(operation);
+          this.context.stderr.write(JSON.stringify(errors, null, 2));
+          this.context.stderr.write("\n");
+          this.context.stderr.write("-".repeat(32));
+          this.context.stderr.write("\n");
         }
       }
 
