@@ -19,9 +19,10 @@ runExit(
     async execute() {
       const configPath = resolve(process.cwd(), this.config);
 
-      const supergraphConfig = /** @type {SupergraphConfig} */ (
-        load(await readFile(configPath, "utf-8"))
-      );
+      const supergraphConfig =
+        /** @type {import("../types.js").SupergraphConfig} */ (
+          load(await readFile(configPath, "utf-8"))
+        );
 
       const operationPaths = await globby(this.operations);
 
@@ -39,10 +40,26 @@ runExit(
 
       const result = treeShakeSupergraph(serviceDefinitions, operations);
 
+      if (result.kind === "COMPOSITION_FAILURE") {
+        console.log("⚠️⚠️⚠️ Composition failed after tree shaking ⚠️⚠️⚠️");
+        console.log(result.errors);
+      }
+
+      if (result.kind === "OPERATION_VALIDATION_FAILURE") {
+        console.log(
+          "⚠️⚠️⚠️ Operations are no longer valid against new supergraph ⚠️⚠️⚠️"
+        );
+        for (const [operation, errors] of result.errors) {
+          console.log(operation);
+          console.log(errors);
+          console.log("-".repeat(32));
+        }
+      }
+
       if (this.out) {
         const outDir = resolve(process.cwd(), this.out);
         await mkdir(outDir, { recursive: true });
-        const config = serviceDefinitionsToSupergraphConfig(result, {
+        const config = serviceDefinitionsToSupergraphConfig(result.subgraphs, {
           files: true,
         });
 
@@ -51,7 +68,7 @@ runExit(
           dump(config),
           "utf-8"
         );
-        for (const service of result) {
+        for (const service of result.subgraphs) {
           await writeFile(
             resolve(outDir, `${service.name}.graphql`),
             print(service.typeDefs),
@@ -60,7 +77,11 @@ runExit(
         }
       } else {
         console.log(
-          dump(serviceDefinitionsToSupergraphConfig(result, { files: false }))
+          dump(
+            serviceDefinitionsToSupergraphConfig(result.subgraphs, {
+              files: false,
+            })
+          )
         );
       }
     }
@@ -68,7 +89,7 @@ runExit(
 );
 
 /**
- * @param {SupergraphConfig} supergraphConfig
+ * @param {import("../types.js").SupergraphConfig} supergraphConfig
  * @param {string} pwd
  * @returns {Promise<import("@apollo/federation-internals").ServiceDefinition[]>}
  */
@@ -102,7 +123,7 @@ async function supergraphConfigToServiceDefinitions(supergraphConfig, pwd) {
 /**
  * @param {import("@apollo/federation-internals").ServiceDefinition[]} serviceDefinitions
  * @param {{ files: boolean }} options
- * @returns {SupergraphConfig}
+ * @returns {import("../types.js").SupergraphConfig}
  */
 function serviceDefinitionsToSupergraphConfig(serviceDefinitions, { files }) {
   return {

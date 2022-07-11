@@ -7,7 +7,7 @@ test("shake unused types, fields, arguments, scalars, enums", async () => {
   const b = parse(await readFile("example/b.graphql", "utf-8"));
   const op = parse(await readFile("example/operation.graphql", "utf-8"));
 
-  const newSubgraphs = treeShakeSupergraph(
+  const result = treeShakeSupergraph(
     [
       { name: "a", typeDefs: a },
       { name: "b", typeDefs: b },
@@ -15,7 +15,7 @@ test("shake unused types, fields, arguments, scalars, enums", async () => {
     [op]
   );
 
-  expect(print(newSubgraphs[0].typeDefs)).toMatchInlineSnapshot(`
+  expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
 "type Query {
   foo(a: String): Foo
   bar(input: BarInput): Bar
@@ -42,7 +42,7 @@ enum UsedEnum {
   B
 }"
 `);
-  expect(print(newSubgraphs[1].typeDefs)).toMatchInlineSnapshot(`
+  expect(print(result.subgraphs[1].typeDefs)).toMatchInlineSnapshot(`
 "type Query {
   baz: Baz
 }
@@ -122,9 +122,9 @@ test("shake abstract types", () => {
     }
   `);
 
-  const newSubgraphs = treeShakeSupergraph([{ name: "a", typeDefs: a }], [op]);
+  const result = treeShakeSupergraph([{ name: "a", typeDefs: a }], [op]);
 
-  expect(print(newSubgraphs[0].typeDefs)).toMatchInlineSnapshot(`
+  expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
 "type Query {
   animal: Animal
   result: Result
@@ -194,7 +194,7 @@ test("@requires", () => {
     }
   `);
 
-  const newSubgraphs = treeShakeSupergraph(
+  const result = treeShakeSupergraph(
     [
       { name: "a", typeDefs: a },
       { name: "b", typeDefs: b },
@@ -202,7 +202,7 @@ test("@requires", () => {
     [op]
   );
 
-  expect(print(newSubgraphs[0].typeDefs)).toMatchInlineSnapshot(`
+  expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
 "type Query {
   foo: Foo
 }
@@ -219,7 +219,7 @@ type Bar @key(fields: \\"id\\") {
   b: String @external
 }"
 `);
-  expect(print(newSubgraphs[1].typeDefs)).toMatchInlineSnapshot(`
+  expect(print(result.subgraphs[1].typeDefs)).toMatchInlineSnapshot(`
 "type Foo @key(fields: \\"bar { id }\\") {
   bar: Bar
   quux: String
