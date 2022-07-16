@@ -10,7 +10,9 @@
   "bin": "bin/index.js",
   "dependencies": {
     "@apollo/composition": "^2.0.5",
+    "@apollo/federation-1": "npm:@apollo/federation@0.36.2",
     "@apollo/federation-internals": "^2.0.5",
+    "@apollo/query-planner-1": "npm:@apollo/query-planner@0.10.1",
     "@apollo/query-planner": "^2.0.5",
     "@apollo/subgraph": "^2.0.5",
     "@graphql-tools/merge": "^8.3.0",

@@ -97,6 +97,6 @@ export class SchemaTypeInfo {
       // input fields
       return `${this.#parentInputType.name}.${fieldOrArgumentName}`;
     }
-    assert(false, `dont know what to do with ${fieldOrArgumentName}`);
+    // this is probably directive argument, ignoring
   }
 }

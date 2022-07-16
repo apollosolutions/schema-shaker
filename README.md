@@ -6,12 +6,6 @@ Given subgraph schemas and a set of operations, reduce the subgraphs to only the
 
 ## Example Usage
 
-The supergraph config file format matches [rover's supergraph compose](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) config format.
-
-The `--operations` argument is a file glob.
-
-The `--out` argument is a folder to store a new supergraph config and subgraph schema files. Use the new supergraph config with `rover supergraph compose` to generate a new supergraph schema.
-
 ```sh
 npx github:@apollosolutions/schema-shaker \
   --config supergraph.yaml \
@@ -19,6 +13,14 @@ npx github:@apollosolutions/schema-shaker \
   --out outdir
 ```
 
+The supergraph.yaml config file format matches [rover's supergraph compose](https://www.apollographql.com/docs/rover/commands/supergraphs#yaml-configuration-file) config format.
+
+The `--operations` argument is a file glob.
+
+The `--out` argument is a folder to store a new supergraph config and subgraph schema files. Use the new supergraph config with `rover supergraph compose` to generate a new supergraph schema.
+
 When `--out` is not set, the command prints a new supergraph config to stdout.
+
+Generate a Federation 1 supergraph using `--composer 1`.
 
 After tree shaking, the script recomposes the smaller subgraphs and revalidates the original operations against the new API schema. It will still output supergraph configs and subgraph schemas, but if there are errors in the console then they're most likely not valid.

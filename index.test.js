@@ -12,7 +12,8 @@ test("shake unused types, fields, arguments, scalars, enums", async () => {
       { name: "a", typeDefs: a },
       { name: "b", typeDefs: b },
     ],
-    [op]
+    [op],
+    { compositionVersion: "2" }
   );
 
   expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
@@ -58,6 +59,63 @@ type Bar @key(fields: \\"id\\") {
 `);
 });
 
+test("[fed1] shake unused types, fields, arguments, scalars, enums", async () => {
+  const a = parse(await readFile("example/fed1/a.graphql", "utf-8"));
+  const b = parse(await readFile("example/fed1/b.graphql", "utf-8"));
+  const op = parse(await readFile("example/operation.graphql", "utf-8"));
+
+  const result = treeShakeSupergraph(
+    [
+      { name: "a", typeDefs: a },
+      { name: "b", typeDefs: b },
+    ],
+    [op],
+    { compositionVersion: "2" }
+  );
+
+  expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
+"type Query {
+  foo(a: String): Foo
+  bar(input: BarInput): Bar
+}
+
+type Foo @key(fields: \\"id\\") {
+  id: ID!
+  used: UsedEnum
+}
+
+type Bar @key(fields: \\"id\\") {
+  id: ID!
+}
+
+input BarInput {
+  used: String
+  unused: Upload
+}
+
+scalar Upload
+
+enum UsedEnum {
+  A
+  B
+}"
+`);
+  expect(print(result.subgraphs[1].typeDefs)).toMatchInlineSnapshot(`
+"type Query {
+  baz: Baz
+}
+
+type Baz {
+  used: String
+}
+
+extend type Bar @key(fields: \\"id\\") {
+  id: ID! @external
+  used: String
+}"
+`);
+});
+
 test("shake abstract types", () => {
   const a = parse(`
     type Query {
@@ -88,6 +146,11 @@ test("shake abstract types", () => {
       purr: String
     }
 
+    type Fish implements Animal {
+      name: String
+      unused: String
+    }
+
     union Result = Success | Warning | Error
 
     type Success {
@@ -110,6 +173,10 @@ test("shake abstract types", () => {
           name
           bark
         }
+
+        ... on Cat {
+          purr
+        }
       }
       result {
         ... on Success {
@@ -122,7 +189,9 @@ test("shake abstract types", () => {
     }
   `);
 
-  const result = treeShakeSupergraph([{ name: "a", typeDefs: a }], [op]);
+  const result = treeShakeSupergraph([{ name: "a", typeDefs: a }], [op], {
+    compositionVersion: "2",
+  });
 
   expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
 "type Query {
@@ -139,6 +208,10 @@ type Dog implements Animal {
   bark: String
 }
 
+type Cat implements Animal {
+  purr: String
+}
+
 union Result = Success | Error
 
 type Success {
@@ -147,6 +220,83 @@ type Success {
 
 type Error {
   reason: String
+}"
+`);
+});
+
+test("shake abstract types (fragments)", () => {
+  const a = parse(`
+    type Query {
+      animal: Animal
+    }
+
+    interface Animal {
+      name: String
+      unused: String
+    }
+
+    interface Node {
+      id: ID!
+    }
+
+    type Dog implements Animal & Node {
+      id: ID!
+      name: String
+      bark: String
+      unused: String
+      unused2: String
+    }
+
+    type Cat implements Animal {
+      name: String
+      unused: String
+      purr: String
+    }
+
+    type Fish implements Animal {
+      name: String
+      unused: String
+    }
+  `);
+
+  const op = parse(`
+    fragment F on Animal {
+      name
+      ... on Cat {
+        purr
+      }
+    }
+    query Test {
+      animal {
+        ... F
+        ... on Dog {
+          bark
+        }
+      }
+    }
+  `);
+
+  const result = treeShakeSupergraph([{ name: "a", typeDefs: a }], [op], {
+    compositionVersion: "2",
+  });
+
+  expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
+"type Query {
+  animal: Animal
+}
+
+interface Animal {
+  name: String
+}
+
+type Dog implements Animal {
+  name: String
+  bark: String
+}
+
+type Cat implements Animal {
+  name: String
+  purr: String
 }"
 `);
 });
@@ -199,7 +349,8 @@ test("@requires", () => {
       { name: "a", typeDefs: a },
       { name: "b", typeDefs: b },
     ],
-    [op]
+    [op],
+    { compositionVersion: "2" }
   );
 
   expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`

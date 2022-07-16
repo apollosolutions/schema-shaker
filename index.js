@@ -1,4 +1,3 @@
-import { composeServices } from "@apollo/composition";
 import { operationFromDocument } from "@apollo/federation-internals";
 import { QueryPlanner } from "@apollo/query-planner";
 import { buildSubgraphSchema } from "@apollo/subgraph";
@@ -12,14 +11,20 @@ import {
   collectFetchNodes,
   convertFetchRequiresToFragment,
 } from "./src/query-planning.js";
+import { composeServices } from "./src/composition.js";
 
 /**
  * @param {import("@apollo/federation-internals").ServiceDefinition[]} subgraphs
  * @param {import("graphql").DocumentNode[]} operations
+ * @param {{ compositionVersion: '1' | '2' }} options
  * @returns {import("./types.js").TreeShakeResult}
  */
-export function treeShakeSupergraph(subgraphs, operations) {
-  const compositionResult = composeServices(subgraphs);
+export function treeShakeSupergraph(
+  subgraphs,
+  operations,
+  { compositionVersion }
+) {
+  const compositionResult = composeServices(subgraphs, compositionVersion);
 
   if (compositionResult.errors) {
     console.log(compositionResult.errors);
@@ -53,7 +58,7 @@ export function treeShakeSupergraph(subgraphs, operations) {
       (a) => Boolean(a)
     );
 
-  const recompositionResult = composeServices(newSubgraphs);
+  const recompositionResult = composeServices(newSubgraphs, compositionVersion);
 
   if (recompositionResult.errors) {
     return {

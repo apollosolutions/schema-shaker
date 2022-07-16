@@ -1,6 +1,8 @@
 import { getDirective } from "@graphql-tools/utils";
 import {
   getNamedType,
+  GraphQLInterfaceType,
+  GraphQLObjectType,
   GraphQLSchema,
   isInputObjectType,
   isInterfaceType,
@@ -30,9 +32,8 @@ export function collectUsedSchemaCoordinates(operation, schema) {
 
   const typeInfo = new TypeInfo(schema);
 
-  const interfaceTypes = Object.values(schema.getTypeMap()).filter(
-    isInterfaceType
-  );
+  /** @type {Map<string, Set<string>>} */
+  const markedInterfaceFields = new Map();
 
   visit(
     operation,
@@ -50,11 +51,10 @@ export function collectUsedSchemaCoordinates(operation, schema) {
 
           const namedReturnType = getNamedType(type);
 
-          if (isIntrospectionType(parentType)) {
-            return;
-          }
-
-          if (isIntrospectionType(namedReturnType)) {
+          if (
+            isIntrospectionType(parentType) ||
+            isIntrospectionType(namedReturnType)
+          ) {
             return;
           }
 
@@ -65,18 +65,11 @@ export function collectUsedSchemaCoordinates(operation, schema) {
           schemaCoordinates.add(parentType.name);
           schemaCoordinates.add(namedReturnType.name);
 
-          // if this type is a possible type of an interface, add the interface's
-          // matching fields to the list of used coordinates
-          if (isObjectType(parentType) || isInterfaceType(parentType)) {
-            for (const interfaceType of interfaceTypes) {
-              if (
-                schema.isSubType(interfaceType, parentType) &&
-                interfaceType.getFields()[field.name]
-              ) {
-                schemaCoordinates.add(`${interfaceType.name}.${field.name}`);
-                schemaCoordinates.add(`${parentType.name}.${field.name}`);
-              }
+          if (isInterfaceType(parentType)) {
+            if (!markedInterfaceFields.has(parentType.name)) {
+              markedInterfaceFields.set(parentType.name, new Set());
             }
+            markedInterfaceFields.get(parentType.name)?.add(field.name);
           }
         },
       },
@@ -107,6 +100,54 @@ export function collectUsedSchemaCoordinates(operation, schema) {
       },
     })
   );
+
+  const implementingTypes = Object.values(schema.getTypeMap()).filter(
+    /** @returns {t is GraphQLInterfaceType | GraphQLObjectType} */
+    (t) =>
+      (isObjectType(t) || isInterfaceType(t)) && t.getInterfaces().length > 0
+  );
+
+  // if the operation selects an interface's field, we'll need all objects
+  // implementing that interface to implement the field so that they
+  // continue to be valid
+  for (const [interfaceName, fieldNames] of markedInterfaceFields) {
+    const interfaceType = schema.getType(interfaceName);
+    if (!isInterfaceType(interfaceType)) continue;
+
+    for (const fieldName of fieldNames) {
+      for (const implementingType of implementingTypes) {
+        if (
+          schema.isSubType(interfaceType, implementingType) &&
+          interfaceType.getFields()[fieldName]
+        ) {
+          // this doesn't add the implementing type coordinate to the list --
+          // if we never use the type, then it should be removed even if
+          // the fields might be "used"
+          schemaCoordinates.add(`${implementingType.name}.${fieldName}`);
+        }
+      }
+    }
+
+    for (const field of Object.values(interfaceType.getFields())) {
+      const fieldCoordinate = `${interfaceType.name}.${field.name}`;
+      if (schemaCoordinates.has(fieldCoordinate)) {
+        for (const implementingType of implementingTypes) {
+          if (schema.isSubType(interfaceType, implementingType)) {
+            schemaCoordinates.add(`${implementingType.name}.${field.name}`);
+          }
+        }
+      }
+
+      for (const implementingType of implementingTypes) {
+        if (schema.isSubType(interfaceType, implementingType)) {
+          const fieldCoordinate = `${implementingType.name}.${field.name}`;
+          if (schemaCoordinates.has(fieldCoordinate)) {
+            schemaCoordinates.add(`${interfaceType.name}.${field.name}`);
+          }
+        }
+      }
+    }
+  }
 
   return schemaCoordinates;
 }

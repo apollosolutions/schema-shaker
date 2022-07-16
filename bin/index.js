@@ -24,6 +24,8 @@ runExit(
           load(await readFile(configPath, "utf-8"))
         );
 
+      const compositionVersion = supergraphConfig.federation_version ?? "1";
+
       const operationPaths = await globby(this.operations);
 
       const operations = await Promise.all(
@@ -38,13 +40,20 @@ runExit(
         dirname(configPath)
       );
 
-      const result = treeShakeSupergraph(serviceDefinitions, operations);
+      const result = treeShakeSupergraph(serviceDefinitions, operations, {
+        compositionVersion,
+      });
 
       if (result.kind === "COMPOSITION_FAILURE") {
         this.context.stderr.write(
           "⚠️⚠️⚠️ Composition failed after tree shaking ⚠️⚠️⚠️\n"
         );
-        this.context.stderr.write(JSON.stringify(result.errors, null, 2));
+        this.context.stderr.write(
+          `Error count: ${result.errors.length} errors\n`
+        );
+        this.context.stderr.write(
+          result.errors.map((e) => e.message).join("\n")
+        );
         this.context.stderr.write("\n");
       }
 
@@ -54,7 +63,8 @@ runExit(
         );
         for (const [operation, errors] of result.errors) {
           this.context.stderr.write(operation);
-          this.context.stderr.write(JSON.stringify(errors, null, 2));
+          this.context.stderr.write(`Error count: ${errors.length} errors\n`);
+          this.context.stderr.write(errors.map((e) => e.message).join("\n"));
           this.context.stderr.write("\n");
           this.context.stderr.write("-".repeat(32));
           this.context.stderr.write("\n");
@@ -66,6 +76,7 @@ runExit(
         await mkdir(outDir, { recursive: true });
         const config = serviceDefinitionsToSupergraphConfig(result.subgraphs, {
           files: true,
+          federationVersion: compositionVersion,
         });
 
         await writeFile(
@@ -85,6 +96,7 @@ runExit(
           dump(
             serviceDefinitionsToSupergraphConfig(result.subgraphs, {
               files: false,
+              federationVersion: compositionVersion,
             })
           )
         );
@@ -127,10 +139,13 @@ async function supergraphConfigToServiceDefinitions(supergraphConfig, pwd) {
 
 /**
  * @param {import("@apollo/federation-internals").ServiceDefinition[]} serviceDefinitions
- * @param {{ files: boolean }} options
+ * @param {{ files: boolean; federationVersion: '1' | '2' }} options
  * @returns {import("../types.js").SupergraphConfig}
  */
-function serviceDefinitionsToSupergraphConfig(serviceDefinitions, { files }) {
+function serviceDefinitionsToSupergraphConfig(
+  serviceDefinitions,
+  { files, federationVersion }
+) {
   return {
     subgraphs: Object.fromEntries(
       serviceDefinitions.map((def) => [
@@ -143,6 +158,6 @@ function serviceDefinitionsToSupergraphConfig(serviceDefinitions, { files }) {
         },
       ])
     ),
-    federation_version: "2",
+    federation_version: federationVersion,
   };
 }
