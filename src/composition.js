@@ -1,6 +1,6 @@
 import { composeServices as composeServicesV2 } from "@apollo/composition";
 import { composeAndValidate } from "@apollo/federation-1";
-import { buildSupergraphSchema, Schema } from "@apollo/federation-internals";
+import { buildSupergraphSchema } from "@apollo/federation-internals";
 import { buildComposedSchema } from "@apollo/query-planner-1";
 import { parse } from "graphql";
 

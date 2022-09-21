@@ -24,7 +24,9 @@ runExit(
           load(await readFile(configPath, "utf-8"))
         );
 
-      const compositionVersion = supergraphConfig.federation_version ?? "1";
+      const compositionVersion =
+        /** @type {"1" | "2" | undefined} */
+        (`${supergraphConfig.federation_version}`) ?? "1";
 
       const operationPaths = await globby(this.operations);
 

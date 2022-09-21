@@ -383,3 +383,82 @@ type Bar @key(fields: \\"id\\") {
 }"
 `);
 });
+
+test("schema definitions", () => {
+  const a = parse(`
+    type Query {
+      a: B
+    }
+
+    type B @key(fields: "id") {
+      id: ID!
+    }
+
+    type Mutation {
+      b: String
+    }
+
+    schema {
+      query: Query
+      mutation: Mutation
+    }
+  `);
+
+  const b = parse(`
+    type Query {
+      c: String
+    }
+
+    type B @key(fields: "id") {
+      id: ID!
+      b2: String
+    }
+
+    directive @contact(name: String) on SCHEMA
+
+    schema @contact(name: "hi") {
+      query: Query
+    }
+  `);
+
+  const op = parse(`
+    query Test {
+      a {
+        b2
+      }
+    }
+  `);
+
+  const result = treeShakeSupergraph(
+    [
+      { name: "a", typeDefs: a },
+      { name: "b", typeDefs: b },
+    ],
+    [op],
+    { compositionVersion: "2" }
+  );
+
+  expect(print(result.subgraphs[0].typeDefs)).toMatchInlineSnapshot(`
+"type Query {
+  a: B
+}
+
+type B @key(fields: \\"id\\") {
+  id: ID!
+}
+
+schema {
+  query: Query
+}"
+`);
+  expect(print(result.subgraphs[1].typeDefs)).toMatchInlineSnapshot(`
+"type B @key(fields: \\"id\\") {
+  id: ID!
+  b2: String
+}
+
+directive @contact(name: String) on SCHEMA
+
+extend schema @contact(name: \\"hi\\")"
+`);
+});

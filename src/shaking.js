@@ -16,6 +16,7 @@ import {
 } from "graphql";
 import { assert } from "./assert.js";
 import {
+  isInputObjectTypeNode,
   isInterfaceTypeNode,
   isObjectTypeNode,
   isUnionTypeNode,
@@ -202,8 +203,50 @@ export function collectUsedSchemaCoordinatesFromFederationDirectives(
  */
 export function removeUnusedSchemaElements(usedCoordinates, schemaAst, schema) {
   const typeInfo = new SchemaTypeInfo(schema);
+  const rootTypes = {
+    queryName: schema.getQueryType()?.name,
+    mutationName: schema.getMutationType()?.name,
+    subscriptionName: schema.getSubscriptionType()?.name,
+    hasQueryType: false,
+    hasMutationType: false,
+    hasSubscriptionType: false,
+    /**
+     * @param {string | undefined} name
+     */
+    mark(name) {
+      if (this.queryName === name) this.hasQueryType = true;
+      if (this.mutationName === name) this.hasMutationType = true;
+      if (this.subscriptionName === name) this.hasSubscriptionType = true;
+    },
+    /**
+     * @param {import("graphql").SchemaDefinitionNode} schemaDef
+     */
+    mutate(schemaDef) {
+      const operationTypes = schemaDef.operationTypes.filter((t) => {
+        switch (t.operation) {
+          case "query":
+            return this.hasQueryType;
+          case "mutation":
+            return this.hasMutationType;
+          case "subscription":
+            return this.hasSubscriptionType;
+        }
+      });
 
-  return visit(schemaAst, {
+      if (operationTypes.length === 0 && !schemaDef.directives?.length) {
+        return null;
+      }
+
+      return {
+        ...schemaDef,
+        kind:
+          operationTypes.length === 0 ? Kind.SCHEMA_EXTENSION : schemaDef.kind,
+        operationTypes,
+      };
+    },
+  };
+
+  const shaken = visit(schemaAst, {
     enter(node) {
       typeInfo.enter(node);
 
@@ -242,9 +285,8 @@ export function removeUnusedSchemaElements(usedCoordinates, schemaAst, schema) {
             return node.name.value;
           case Kind.FIELD_DEFINITION:
             return typeInfo.fieldCoordinate(node.name.value);
-          case Kind.INPUT_VALUE_DEFINITION: {
+          case Kind.INPUT_VALUE_DEFINITION:
             return typeInfo.inputValueCoordinate(node.name.value);
-          }
         }
       })();
 
@@ -259,6 +301,35 @@ export function removeUnusedSchemaElements(usedCoordinates, schemaAst, schema) {
 
     leave(node) {
       typeInfo.leave(node);
+
+      // remove empty container types
+      if (
+        isObjectTypeNode(node) ||
+        isInterfaceTypeNode(node) ||
+        isInputObjectTypeNode(node)
+      ) {
+        if (node.fields?.length === 0) {
+          return null;
+        }
+      }
+    },
+  });
+
+  return visit(shaken, {
+    [Kind.OBJECT_TYPE_DEFINITION]: {
+      enter(node) {
+        rootTypes.mark(node.name.value);
+      },
+    },
+    [Kind.OBJECT_TYPE_EXTENSION]: {
+      enter(node) {
+        rootTypes.mark(node.name.value);
+      },
+    },
+    [Kind.SCHEMA_DEFINITION]: {
+      leave(node) {
+        return rootTypes.mutate(node);
+      },
     },
   });
 }
