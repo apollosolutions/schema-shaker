@@ -1,0 +1,7 @@
+name: schema-shaker
+description: A tool to reduce the subgraphs to only the necessary elements for
+  operations and query planning by "tree shaking" the supergraph.
+tags:
+  - Schema
+  - Supergraph
+  - Troobleshooting
