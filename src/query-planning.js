@@ -21,9 +21,11 @@ export function collectFetchNodes(qp) {
       case "Parallel":
       case "Sequence":
         node.nodes.forEach((node) => recurse(node));
+      default:
+        break;
     }
   }
-
+  if (qp.node?.kind === "Subscription") return;
   if (qp.node) recurse(qp.node);
 
   return nodes;
