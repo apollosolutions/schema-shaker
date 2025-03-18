@@ -25,13 +25,11 @@ export function treeShakeSupergraph(
   { compositionVersion }
 ) {
   const compositionResult = composeServices(subgraphs, compositionVersion);
-
-  if (compositionResult.errors) {
-    console.log(compositionResult.errors);
+  if (!compositionResult) {
     throw new Error("could not compose");
   }
 
-  const queryPlanner = new QueryPlanner(compositionResult.schema);
+  const queryPlanner = new QueryPlanner(compositionResult);
   const fetchNodes = operations.flatMap((doc) => {
     const op = operationFromDocument(compositionResult.schema, doc);
     const qp = queryPlanner.buildQueryPlan(op);
@@ -40,12 +38,19 @@ export function treeShakeSupergraph(
 
   const newSubgraphs = subgraphs
     .map((subgraph) => {
+      if (!fetchNodes){
+        return
+      }
       const relevantFetchNodes = fetchNodes.filter(
-        (node) => node.serviceName === subgraph.name
-      );
-
+        (node) => {
+          if (!node || !node === undefined){
+            return false
+          }
+          return node.serviceName === subgraph.name
+        }
+      ).flatMap(n => n ? [n] : []); // filter out undefined values
+      
       const newTypeDefs = shakeSubgraphSchema(subgraph, relevantFetchNodes);
-
       if (!newTypeDefs) return null;
 
       return {
@@ -60,11 +65,11 @@ export function treeShakeSupergraph(
 
   const recompositionResult = composeServices(newSubgraphs, compositionVersion);
 
-  if (recompositionResult.errors) {
+  if (!recompositionResult) {
     return {
       kind: "COMPOSITION_FAILURE",
       subgraphs: newSubgraphs,
-      errors: recompositionResult.errors,
+      errors: [new GraphQLError("could not compose")],
     };
   } else {
     const apiSchema = recompositionResult.schema

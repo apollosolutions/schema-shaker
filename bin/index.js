@@ -54,6 +54,9 @@ runExit(
           `Error count: ${result.errors.length} errors\n`
         );
         this.context.stderr.write(
+          `Errors: ${result.errors.map((e) => e.message).join(" ")}`
+        )
+        this.context.stderr.write(
           result.errors.map((e) => e.message).join("\n")
         );
         this.context.stderr.write("\n");
